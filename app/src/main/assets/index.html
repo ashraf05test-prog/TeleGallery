@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Gallery</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html,body{height:100%;background:#000;color:#fff;font-family:-apple-system,'Samsung One','SamsungSans',sans-serif;overflow:hidden;font-size:14px}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;background:#000;z-index:1;overflow:hidden}
+.screen.active{display:flex}
+
+/* ── SETUP ── */
+#s-setup{align-items:stretch}
+.setup-wrap{flex:1;overflow-y:auto;padding:52px 24px 44px}
+.setup-wrap::-webkit-scrollbar{display:none}
+.setup-title{font-size:28px;font-weight:600;letter-spacing:-.5px;margin-bottom:6px}
+.setup-desc{font-size:14px;color:#888;line-height:1.6;margin-bottom:40px}
+.setup-section{margin-bottom:28px}
+.setup-field-label{font-size:12px;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.setup-input{width:100%;background:#111;border:none;border-radius:12px;color:#fff;font-size:15px;padding:14px 16px;outline:none;font-family:inherit}
+.setup-input::placeholder{color:#444}
+.setup-input:focus{background:#161616}
+.setup-note{background:#111;border-radius:12px;padding:16px;margin-top:12px;line-height:1.7;font-size:13px;color:#888}
+.setup-note b{color:#fff;font-weight:500}
+.setup-note code{color:#3d90f5;font-family:monospace;font-size:12px}
+.setup-actions{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.btn-primary{background:#3d90f5;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;padding:15px;cursor:pointer;font-family:inherit;width:100%}
+.btn-primary:active{background:#2d7ee8}
+.btn-secondary{background:#1a1a1a;border:none;border-radius:12px;color:#aaa;font-size:14px;padding:14px;cursor:pointer;font-family:inherit;width:100%}
+.btn-secondary:active{background:#222}
+.s-status{font-size:13px;text-align:center;padding:10px;border-radius:10px;display:none;margin-top:4px}
+.s-status.err{background:rgba(255,59,48,.1);color:#ff3b30;display:block}
+.s-status.ok{background:rgba(52,199,89,.1);color:#34c759;display:block}
+.s-status.loading{background:rgba(61,144,245,.08);color:#3d90f5;display:block}
+
+/* ── APP SHELL ── */
+#s-app{background:#000}
+.topbar{height:52px;display:flex;align-items:center;padding:0 4px 0 12px;background:#000;flex-shrink:0}
+.topbar-title{font-size:22px;font-weight:600;flex:1;letter-spacing:-.3px}
+.topbar-title.sm{font-size:16px;font-weight:500}
+.tb-btn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:#fff;cursor:pointer;border-radius:50%;flex-shrink:0}
+.tb-btn:active{background:#1a1a1a}
+.app-body{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.bottom-nav{height:58px;min-height:58px;background:#000;border-top:1px solid #1a1a1a;display:flex;align-items:stretch;flex-shrink:0;z-index:10}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;border:none;background:transparent;color:#888;font-family:inherit}
+.bn-item.active{color:#3d90f5}
+.bn-label{font-size:11px}
+.bn-item.active .bn-label{font-weight:500}
+
+/* ── PICS TAB ── */
+#pics-scroll{flex:1;overflow-y:auto}
+#pics-scroll::-webkit-scrollbar{display:none}
+.date-header{padding:18px 12px 8px;font-size:18px;font-weight:600;letter-spacing:-.2px}
+.pic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.pic-cell{position:relative;aspect-ratio:1;background:#111;overflow:hidden;cursor:pointer}
+.pic-cell img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .2s}
+.pic-cell img.vis{opacity:1}
+.pic-cell:active img{opacity:.7}
+.pic-check{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,0.85);background:rgba(0,0,0,0.25);
+  display:none;align-items:center;justify-content:center;z-index:2;
+  box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+.sel-mode .pic-check{display:flex}
+.pic-cell.chk .pic-check{background:#3d90f5;border-color:#3d90f5;box-shadow:0 1px 4px rgba(61,144,245,0.5)}
+.pic-cell.chk .pic-check::after{content:'';width:9px;height:6px;
+  border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;
+  transform:rotate(-45deg) translate(0,-1px);display:block}
+.pic-cell.chk::after{content:'';position:absolute;inset:0;background:rgba(61,144,245,0.18);z-index:1}
+.pics-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center}
+.pics-empty-icon{font-size:64px;opacity:.2}
+.pics-empty-title{font-size:17px;font-weight:600;color:#888}
+.pics-empty-sub{font-size:13px;color:#555;line-height:1.6}
+
+/* ── ALBUMS ── */
+#albums-scroll{flex:1;overflow-y:auto}
+#albums-scroll::-webkit-scrollbar{display:none}
+.albums-section-title{font-size:14px;font-weight:500;color:#888;padding:14px 14px 8px}
+.album-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2px}
+.album-card{background:#000;cursor:pointer}
+.album-card:active .album-thumb-grid{opacity:.7}
+.album-thumb-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;aspect-ratio:1;gap:1px;background:#111}
+.album-thumb-grid.single{grid-template-columns:1fr;grid-template-rows:1fr}
+.album-thumb-grid img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .2s}
+.album-thumb-grid img.vis{opacity:1}
+.album-card-info{padding:8px 10px 14px}
+.album-card-name{font-size:14px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.album-card-count{font-size:12px;color:#888}
+
+/* ── STORIES ── */
+#stories-scroll{flex:1;overflow-y:auto;padding-bottom:16px}
+#stories-scroll::-webkit-scrollbar{display:none}
+.stories-highlights{padding:16px 12px 8px;display:flex;gap:12px;overflow-x:auto}
+.stories-highlights::-webkit-scrollbar{display:none}
+.highlight-item{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;cursor:pointer}
+.highlight-thumb{width:72px;height:72px;border-radius:14px;background:#111;overflow:hidden}
+.highlight-thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s}
+.highlight-thumb img.vis{opacity:1}
+.highlight-name{font-size:11px;color:#aaa;text-align:center;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stories-heading{font-size:16px;font-weight:600;padding:8px 14px 12px}
+.story-card{margin:0 12px 14px;border-radius:16px;overflow:hidden;position:relative;cursor:pointer;background:#111}
+.story-card:active{opacity:.85}
+.story-card-img{width:100%;height:200px;object-fit:cover;display:block;opacity:0;transition:opacity .2s}
+.story-card-img.vis{opacity:1}
+.story-card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 50%)}
+.story-card-foot{position:absolute;bottom:0;left:0;right:0;padding:16px}
+.story-card-title{font-size:17px;font-weight:600;margin-bottom:2px}
+.story-card-date{font-size:12px;color:rgba(255,255,255,.6)}
+.story-heart{position:absolute;top:12px;right:12px;width:32px;height:32px;background:rgba(0,0,0,.3);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.no-content{padding:40px 24px;text-align:center;color:#555;font-size:14px;line-height:1.7}
+
+/* ── MORE TAB ── */
+#more-scroll{flex:1;overflow-y:auto}
+#more-scroll::-webkit-scrollbar{display:none}
+.sync-bar{margin:14px 14px 0;background:#111;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;transition:background .3s}
+.sync-dot.live{background:#34c759;box-shadow:0 0 0 3px rgba(52,199,89,.2)}
+.sync-dot.syncing{background:#3d90f5;animation:pulse 1s infinite}
+.sync-dot.err{background:#ff3b30}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-text{font-size:13px;color:#aaa;flex:1}
+.sync-btn{font-size:12px;color:#3d90f5;cursor:pointer;padding:4px 8px;border:none;background:transparent;font-family:inherit}
+.cfg-card{margin:12px 14px 0;background:#111;border-radius:12px;overflow:hidden}
+.cfg-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #1a1a1a}
+.cfg-row:last-child{border-bottom:none}
+.cfg-k{font-size:12px;color:#888;width:72px;flex-shrink:0}
+.cfg-v{font-size:12px;color:#fff;flex:1;word-break:break-all;font-family:monospace}
+.cfg-edit{font-size:12px;color:#3d90f5;cursor:pointer;flex-shrink:0}
+.more-sec{padding:20px 0 0}
+.more-sec-title{font-size:12px;color:#888;padding:0 16px 8px;text-transform:uppercase;letter-spacing:.5px}
+.more-row{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;font-family:inherit;color:#fff}
+.more-row:active{background:#111}
+.more-row-icon{width:36px;height:36px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;position:relative}
+.more-row-text{flex:1}
+.more-row-text b{display:block;font-size:15px;font-weight:400}
+.more-row-text span{font-size:12px;color:#888}
+.more-chevron{color:#555;flex-shrink:0}
+/* Trash badge */
+.tbadge{position:absolute;top:-4px;right:-4px;background:#ff3b30;color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:none;align-items:center;justify-content:center;padding:0 3px}
+.tbadge.show{display:flex}
+
+/* ── RECYCLE BIN ── */
+#s-trash{z-index:20}
+#trash-scroll{flex:1;overflow-y:auto}
+#trash-scroll::-webkit-scrollbar{display:none}
+.trash-bar{padding:10px 14px;background:#111;border-bottom:1px solid #1a1a1a;font-size:12px;color:#888;display:flex;align-items:center;flex-shrink:0}
+.trash-bar b{color:#fff}
+.trash-empty-btn{margin-left:auto;color:#ff3b30;font-size:13px;cursor:pointer;border:none;background:transparent;font-family:inherit}
+.trash-empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px;text-align:center}
+.trash-empty-icon{font-size:64px;opacity:.2}
+.trash-empty-title{font-size:17px;font-weight:600;color:#888}
+.trash-empty-sub{font-size:13px;color:#555;line-height:1.6}
+.trash-cell::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.35);pointer-events:none}
+.trash-days-lbl{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.7);border-radius:5px;font-size:10px;color:#aaa;padding:3px 6px;z-index:3;pointer-events:none}
+/* trash action bar */
+.t-action-bar{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid #2a2a2a;display:none;align-items:center;padding:10px 14px;gap:10px;z-index:25;height:58px}
+.t-action-bar.active{display:flex}
+.t-sel-count{flex:1;font-size:14px;font-weight:500}
+.btn-restore{flex:1;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#34c759;font-family:inherit;font-size:13px;font-weight:600;padding:10px;cursor:pointer}
+.btn-restore:active{background:#222}
+.btn-permdel{flex:1;background:#ff3b30;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:10px;cursor:pointer}
+.btn-permdel:active{background:#d63028}
+
+/* ── VIEWER ── */
+#s-viewer{background:#000;z-index:50;display:none}
+#s-viewer.active{display:flex}
+.viewer-topbar{height:52px;display:flex;align-items:center;padding:0 4px;background:#000;flex-shrink:0}
+.viewer-title{flex:1;padding:0 8px;font-size:14px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-body{flex:1;overflow:hidden;position:relative}
+.v-swiper{display:flex;width:100%;height:100%;transition:transform .25s ease}
+.v-slide{width:100%;height:100%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.v-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;touch-action:none;transform-origin:center center;transition:none}
+.v-slide{touch-action:pan-x}
+.viewer-foot{height:64px;display:flex;align-items:center;justify-content:space-around;background:#000;border-top:1px solid #1a1a1a;flex-shrink:0}
+.vf-btn{width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:none;background:transparent;color:#fff;cursor:pointer;border-radius:12px}
+.vf-btn:active{background:#1a1a1a}
+.vf-btn span{font-size:10px;color:#888}
+.vf-btn.del{color:#ff3b30}
+.vf-btn.del span{color:#ff3b30}
+
+/* ── UPLOAD SHEET ── */
+#s-upload{position:fixed;inset:0;z-index:60;display:none}
+#s-upload.active{display:block}
+.sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.7)}
+.sheet-panel{position:absolute;bottom:0;left:0;right:0;background:#111;border-radius:18px 18px 0 0;max-height:90vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0)}
+.sheet-panel::-webkit-scrollbar{display:none}
+.sheet-drag{width:36px;height:4px;background:#333;border-radius:2px;margin:10px auto 0}
+.sheet-head{padding:16px 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1a1a1a}
+.sheet-head-title{font-size:16px;font-weight:600;flex:1}
+.sheet-close-btn{width:32px;height:32px;border-radius:50%;background:#222;border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+.sheet-body{padding:14px;display:flex;flex-direction:column;gap:12px}
+/* import buttons */
+.import-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.import-btn{background:#1a1a1a;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:13px;font-weight:500;padding:16px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.import-btn:active{background:#222}
+.import-btn-icon{font-size:26px}
+.import-btn small{font-size:11px;color:#888}
+.sheet-divider{height:1px;background:#1a1a1a}
+.prev-area{background:#1a1a1a;border-radius:14px;aspect-ratio:16/9;max-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden;cursor:pointer}
+.prev-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px}
+.prev-hint{font-size:13px;color:#555;z-index:1;background:rgba(0,0,0,.5);padding:8px 14px;border-radius:20px;pointer-events:none}
+.prev-count-badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.7);border-radius:20px;font-size:12px;padding:4px 10px;z-index:2;display:none}
+#file-inp,#cam-inp{display:none}
+.sheet-label{font-size:12px;color:#888;letter-spacing:.3px;margin-bottom:-4px}
+.sheet-select{width:100%;background:#1a1a1a;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;padding:13px 14px;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.sheet-input{width:100%;background:#1a1a1a;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;padding:13px 14px;outline:none}
+.sheet-input::placeholder{color:#444}
+.prog-wrap{height:3px;background:#222;border-radius:2px;overflow:hidden;display:none}
+.prog-bar{height:100%;background:#3d90f5;border-radius:2px;width:0%;transition:width .3s}
+.sheet-status{font-size:13px;padding:10px;border-radius:10px;text-align:center;display:none}
+.sheet-status.err{background:rgba(255,59,48,.1);color:#ff3b30;display:block}
+.sheet-status.ok{background:rgba(52,199,89,.1);color:#34c759;display:block}
+.sheet-status.loading{background:rgba(61,144,245,.08);color:#3d90f5;display:block}
+.btn-upload{background:#3d90f5;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:600;padding:15px;cursor:pointer;font-family:inherit;width:100%}
+.btn-upload:active{background:#2d7ee8}
+.btn-upload:disabled{background:#1a3a5c;color:#3d90f5;cursor:not-allowed}
+
+/* ── SEARCH ── */
+#s-search{z-index:40}
+.search-bar{padding:10px 12px;background:#000;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.search-input{flex:1;background:#1a1a1a;border:none;border-radius:22px;color:#fff;font-family:inherit;font-size:15px;padding:10px 16px;outline:none}
+.search-input::placeholder{color:#555}
+.search-cancel{color:#3d90f5;font-size:15px;cursor:pointer;padding:6px;white-space:nowrap;border:none;background:transparent;font-family:inherit}
+#search-results{flex:1;overflow-y:auto}
+#search-results::-webkit-scrollbar{display:none}
+.search-hint{padding:40px 24px;text-align:center;color:#555;font-size:14px}
+
+/* ── ALBUM DETAIL ── */
+#s-album-detail{z-index:30}
+
+/* ── CONFIRM DIALOG ── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:center;justify-content:center;padding:24px}
+.confirm-overlay.active{display:flex}
+.confirm-box{background:#1a1a1a;border-radius:16px;width:100%;max-width:320px;overflow:hidden}
+.confirm-title{font-size:17px;font-weight:600;padding:20px 20px 8px;text-align:center}
+.confirm-sub{font-size:14px;color:#888;padding:0 20px 20px;text-align:center;line-height:1.5}
+.confirm-actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #2a2a2a}
+.confirm-btn{border:none;background:transparent;font-family:inherit;font-size:16px;padding:16px;cursor:pointer}
+.confirm-btn.cancel{color:#888;border-right:1px solid #2a2a2a}
+.confirm-btn.danger{color:#ff3b30;font-weight:600}
+.confirm-btn:active{background:#222}
+
+/* FAB */
+.fab-wrap{position:absolute;bottom:calc(58px + 16px);right:16px;z-index:15}
+.fab{width:52px;height:52px;border-radius:50%;background:#3d90f5;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 12px rgba(61,144,245,.4)}
+.fab:active{background:#2d7ee8;transform:scale(.95)}
+
+/* TOAST */
+#toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%) translateY(10px);background:#2a2a2a;border-radius:22px;padding:10px 20px;font-size:13px;white-space:nowrap;z-index:300;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:80vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="screen" id="s-setup">
+  <div class="setup-wrap">
+    <div class="setup-title">TeleGallery</div>
+    <div class="setup-desc">টেলিগ্রামকে ক্লাউড স্টোরেজ হিসেবে ব্যবহার করুন — ফ্রি, আনলিমিটেড।</div>
+    <div class="setup-section">
+      <div class="setup-field-label">Bot Token</div>
+      <input class="setup-input" id="inp-token" type="password" placeholder="110xxxxx:AAFxxx..." autocomplete="off">
+    </div>
+    <div class="setup-section">
+      <div class="setup-field-label">Chat ID</div>
+      <input class="setup-input" id="inp-chat" type="text" placeholder="-100xxxxxxxxxx" autocomplete="off">
+      <div class="setup-note">
+        <b>কীভাবে করবেন:</b><br>
+        1. @BotFather → <code>/newbot</code> → Token কপি করুন<br>
+        2. প্রাইভেট চ্যানেল বানান, Bot-কে Admin করুন<br>
+        3. @userinfobot-এ forward করে Chat ID নিন
+      </div>
+    </div>
+    <div class="s-status" id="setup-status"></div>
+    <div class="setup-actions">
+      <button class="btn-primary" onclick="doConnect()">সংযুক্ত করুন</button>
+      <button class="btn-secondary" onclick="loadDemo()">ডেমো দিয়ে দেখুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="s-app">
+  <div class="topbar" id="main-topbar">
+    <div class="topbar-title" id="topbar-title">Gallery</div>
+    <div id="tb-normal" style="display:flex">
+      <button class="tb-btn" onclick="openSearch()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></button>
+      <button class="tb-btn" onclick="switchTab('more')"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    </div>
+    <div id="tb-select" style="display:none;align-items:center;flex:1">
+      <div id="tb-sel-count" style="flex:1;padding-left:4px;font-size:15px">0개</div>
+      <button class="tb-btn" onclick="selectAll()"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+      <button class="tb-btn" onclick="moveToTrash()" style="color:#ff3b30"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+      <button class="tb-btn" onclick="cancelSelect()">✕</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- PICTURES -->
+    <div id="tab-pics" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+      <div id="pics-scroll">
+        <div id="pics-content"></div>
+        <div class="pics-empty" id="pics-empty" style="display:none">
+          <div class="pics-empty-icon">🖼</div>
+          <div class="pics-empty-title">ছবি নেই</div>
+          <div class="pics-empty-sub">+ বাটন চেপে প্রথম ছবি আপলোড করুন</div>
+        </div>
+      </div>
+    </div>
+    <!-- ALBUMS -->
+    <div id="tab-albums" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div id="albums-scroll"><div id="albums-content"></div></div>
+    </div>
+    <!-- STORIES -->
+    <div id="tab-stories" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div id="stories-scroll"><div id="stories-content"></div></div>
+    </div>
+    <!-- MORE -->
+    <div id="tab-more" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+      <div id="more-scroll">
+        <div class="sync-bar">
+          <div class="sync-dot" id="sync-dot"></div>
+          <div class="sync-text" id="sync-text">তৈরি</div>
+          <button class="sync-btn" onclick="manualSync()">Sync করুন</button>
+        </div>
+        <div class="cfg-card">
+          <div class="cfg-row"><div class="cfg-k">Token</div><div class="cfg-v" id="cfg-token">—</div><div class="cfg-edit" onclick="resetSetup()">পরিবর্তন</div></div>
+          <div class="cfg-row"><div class="cfg-k">Chat ID</div><div class="cfg-v" id="cfg-chat">—</div></div>
+          <div class="cfg-row" style="border:none"><div class="cfg-k">মোট</div><div class="cfg-v" id="cfg-count">0</div></div>
+        </div>
+        <div class="more-sec">
+          <div class="more-sec-title">ব্যবস্থাপনা</div>
+          <button class="more-row" onclick="openUpload()">
+            <div class="more-row-icon">📤</div>
+            <div class="more-row-text"><b>আপলোড / ক্যামেরা</b><span>ফোন গ্যালারি বা সরাসরি ক্যামেরা থেকে</span></div>
+            <svg class="more-chevron" width="16" height="16" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="more-row" onclick="openTrash()">
+            <div class="more-row-icon"><span>🗑</span><div class="tbadge" id="tbadge"></div></div>
+            <div class="more-row-text"><b>Recycle Bin</b><span>30 দিন পর স্বয়ংক্রিয়ভাবে মুছে যায়</span></div>
+            <svg class="more-chevron" width="16" height="16" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="more-row" onclick="manualSync()">
+            <div class="more-row-icon">🔄</div>
+            <div class="more-row-text"><b>Telegram Sync</b><span>নতুন ছবি আনুন</span></div>
+            <svg class="more-chevron" width="16" height="16" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="more-row" onclick="clearCacheConfirm()">
+            <div class="more-row-icon">🧹</div>
+            <div class="more-row-text"><b>ক্যাশ মুছুন</b><span>Telegram-এ থাকবে</span></div>
+            <svg class="more-chevron" width="16" height="16" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="more-sec">
+          <div class="more-sec-title">Auto Backup</div>
+          <!-- Backup toggle row -->
+          <div class="more-row" style="cursor:default">
+            <div class="more-row-icon" id="backup-icon">☁️</div>
+            <div class="more-row-text">
+              <b>সব ছবি Auto Backup</b>
+              <span id="backup-status-text">বন্ধ আছে</span>
+            </div>
+            <div id="backup-toggle" onclick="toggleAutoBackup()"
+              style="width:44px;height:26px;border-radius:13px;background:#333;
+              position:relative;cursor:pointer;flex-shrink:0;transition:background .2s">
+              <div id="backup-toggle-knob"
+                style="width:22px;height:22px;border-radius:50%;background:#fff;
+                position:absolute;top:2px;left:2px;transition:transform .2s;
+                box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+            </div>
+          </div>
+          <!-- Initial backup button -->
+          <button class="more-row" id="initial-backup-btn" onclick="startFullBackup()" style="display:none">
+            <div class="more-row-icon">📦</div>
+            <div class="more-row-text"><b>সব পুরনো ছবি Backup নাও</b><span>একবার চালালেই সব Telegram-এ যাবে</span></div>
+            <svg class="more-chevron" width="16" height="16" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <!-- Backup progress -->
+          <div id="backup-progress-row" style="display:none;padding:10px 16px">
+            <div style="font-size:12px;color:#888;margin-bottom:6px" id="backup-progress-label">Backup হচ্ছে…</div>
+            <div style="height:3px;background:#222;border-radius:2px;overflow:hidden">
+              <div id="backup-progress-bar" style="height:100%;background:#3d90f5;width:0%;transition:width .3s;border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="more-sec">
+          <div class="more-sec-title">তথ্য</div>
+          <div class="more-row" style="cursor:default">
+            <div class="more-row-icon">ℹ️</div>
+            <div class="more-row-text"><b>TeleGallery v2.0</b><span>Telegram-powered • সম্পূর্ণ ফ্রি</span></div>
+          </div>
+        </div>
+        <div style="height:40px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="bn-item active" id="bn-pics" onclick="switchTab('pics')">
+      <svg width="22" height="22" fill="none" stroke="#888" stroke-width="1.7" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span class="bn-label">Pictures</span>
+    </button>
+    <button class="bn-item" id="bn-albums" onclick="switchTab('albums')">
+      <svg width="22" height="22" fill="none" stroke="#888" stroke-width="1.7" viewBox="0 0 24 24"><path d="M3 7h4l2-3h6l2 3h4a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3"/></svg>
+      <span class="bn-label">Albums</span>
+    </button>
+    <button class="bn-item" id="bn-stories" onclick="switchTab('stories')">
+      <svg width="22" height="22" fill="none" stroke="#888" stroke-width="1.7" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/></svg>
+      <span class="bn-label">Stories</span>
+    </button>
+    <button class="bn-item" id="bn-more" onclick="switchTab('more')">
+      <svg width="22" height="22" fill="none" stroke="#888" stroke-width="1.7" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <span class="bn-label">More</span>
+    </button>
+  </div>
+
+  <div class="fab-wrap" id="fab-wrap">
+    <button class="fab" onclick="openUpload()"><svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+  </div>
+</div>
+
+<!-- VIEWER -->
+<div class="screen" id="s-viewer">
+  <div class="viewer-topbar">
+    <button class="tb-btn" onclick="closeViewer()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="viewer-title" id="viewer-title"></div>
+    <div style="width:44px"></div>
+  </div>
+  <div class="viewer-body" id="viewer-body">
+    <div class="v-swiper" id="v-swiper"></div>
+  </div>
+  <div class="viewer-foot">
+    <button class="vf-btn" onclick="toggleFav()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Favourites</span></button>
+    <button class="vf-btn" onclick="showInfo()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Details</span></button>
+    <button class="vf-btn" onclick="sharePhoto()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Share</span></button>
+    <button class="vf-btn del" onclick="moveCurrentToTrash()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg><span>Delete</span></button>
+  </div>
+</div>
+
+<!-- RECYCLE BIN -->
+<div class="screen" id="s-trash">
+  <div class="topbar">
+    <button class="tb-btn" onclick="closeTrash()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-title sm" style="flex:1">Recycle Bin</div>
+    <button class="tb-btn" id="t-sel-all-btn" style="display:none" onclick="trashSelAll()"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+    <button class="tb-btn" id="t-cancel-btn" style="display:none" onclick="cancelTrashSel()">✕</button>
+  </div>
+  <div class="trash-bar" id="trash-bar">
+    <span>ছবিগুলো <b>30 দিন</b> পর মুছে যাবে</span>
+    <button class="trash-empty-btn" onclick="emptyTrashConfirm()">সব মুছুন</button>
+  </div>
+  <div id="trash-scroll">
+    <div class="pic-grid" id="trash-grid" style="margin-bottom:70px"></div>
+    <div class="trash-empty-state" id="trash-empty" style="display:none">
+      <div class="trash-empty-icon">🗑</div>
+      <div class="trash-empty-title">Recycle Bin খালি</div>
+      <div class="trash-empty-sub">মুছলে এখানে আসবে।<br>30 দিন পর স্থায়ীভাবে যাবে।</div>
+    </div>
+  </div>
+  <div class="t-action-bar" id="t-action-bar">
+    <div class="t-sel-count" id="t-sel-count">0টি</div>
+    <button class="btn-restore" onclick="restoreSelected()">↩ পুনরুদ্ধার</button>
+    <button class="btn-permdel" onclick="permDelConfirm()">স্থায়ীভাবে মুছুন</button>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div class="screen" id="s-search">
+  <div class="search-bar">
+    <input class="search-input" id="search-inp" placeholder="অ্যালবাম, তারিখ খুঁজুন…" oninput="doSearch(this.value)" autocomplete="off">
+    <button class="search-cancel" onclick="closeSearch()">বাতিল</button>
+  </div>
+  <div id="search-results">
+    <div class="search-hint" id="search-hint">অ্যালবাম নাম বা তারিখ দিয়ে খুঁজুন</div>
+    <div class="pic-grid" id="search-grid" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ALBUM DETAIL -->
+<div class="screen" id="s-album-detail">
+  <div class="topbar">
+    <button class="tb-btn" onclick="closeAlbumDetail()"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-title sm" id="album-detail-title" style="flex:1"></div>
+    <button class="tb-btn" style="color:#ff3b30" onclick="deleteAlbum()"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+  </div>
+  <div style="flex:1;overflow-y:auto"><div class="pic-grid" id="album-detail-grid"></div></div>
+</div>
+
+<!-- UPLOAD SHEET -->
+<div id="s-upload">
+  <div class="sheet-bg" onclick="closeUpload()"></div>
+  <div class="sheet-panel">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <div class="sheet-head-title">ছবি যোগ করুন</div>
+      <button class="sheet-close-btn" onclick="closeUpload()">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="import-row">
+        <button class="import-btn" onclick="document.getElementById('cam-inp').click()">
+          <div class="import-btn-icon">📷</div>
+          <b>ক্যামেরা</b>
+          <small>এখনই তুলুন</small>
+        </button>
+        <button class="import-btn" onclick="document.getElementById('file-inp').click()">
+          <div class="import-btn-icon">🖼</div>
+          <b>গ্যালারি</b>
+          <small>ফোন থেকে বেছে নিন</small>
+        </button>
+      </div>
+      <input type="file" id="cam-inp" accept="image/*" capture="environment" onchange="onFilesPicked(event)">
+      <input type="file" id="file-inp" accept="image/*" multiple onchange="onFilesPicked(event)">
+      <div class="sheet-divider"></div>
+      <div class="prev-area" id="prev-area" onclick="document.getElementById('file-inp').click()">
+        <div class="prev-hint" id="prev-hint">ছবি বেছে নিন</div>
+        <div class="prev-count-badge" id="prev-count"></div>
+      </div>
+      <div class="sheet-label">অ্যালবাম</div>
+      <select class="sheet-select" id="album-sel"><option value="">কোনো অ্যালবাম নেই</option></select>
+      <input class="sheet-input" id="new-album-inp" type="text" placeholder="নতুন অ্যালবামের নাম (optional)" maxlength="30" onblur="addAlbumFromInput()">
+      <input class="sheet-input" id="caption-inp" type="text" placeholder="Caption (optional)" maxlength="100">
+      <div class="prog-wrap" id="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+      <div class="sheet-status" id="upload-status"></div>
+      <div style="font-size:11px;color:#555;text-align:center;padding:0 4px">⚠️ আপলোড চলাকালীন অ্যাপ খোলা রাখুন</div>
+    <button class="btn-upload" id="btn-upload" onclick="startUpload()">আপলোড করুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirm-title">নিশ্চিত করুন</div>
+    <div class="confirm-sub" id="confirm-sub"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn cancel" onclick="closeConfirm()">বাতিল</button>
+      <button class="confirm-btn danger" id="confirm-ok">মুছুন</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════ DB ═══════ */
+const STORE='tg_gallery_v3'; // v3 রাখলাম যাতে পুরনো data থাকে
+let DB={config:{token:'',chatId:'',demo:false},photos:[],trash:[],albums:[],lastUpdateId:0};
+function saveDB(){try{localStorage.setItem(STORE,JSON.stringify(DB))}catch(e){}}
+function loadDB(){
+  try{
+    // v3 থেকে load করো
+    const s=localStorage.getItem('tg_gallery_v3');
+    if(s) DB={...DB,...JSON.parse(s)};
+    // v4 থেকে migrate করো যদি v3 খালি থাকে
+    else {
+      const s4=localStorage.getItem('tg_gallery_v4');
+      if(s4){ DB={...DB,...JSON.parse(s4)}; saveDB(); localStorage.removeItem('tg_gallery_v4'); }
+    }
+    // photo-তে thumbUrl না থাকলে url দিয়ে fill করো
+    DB.photos=DB.photos.map(p=>({thumbUrl:p.url,...p}));
+    DB.trash=DB.trash.map(p=>({thumbUrl:p.url,...p}));
+  }catch(e){}
+}
+
+/* ═══════ TG API ═══════ */
+const TG=()=>`https://api.telegram.org/bot${DB.config.token}`;
+const TGF=()=>`https://api.telegram.org/file/bot${DB.config.token}`;
+async function tgPost(m,b){const r=await fetch(`${TG()}/${m}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return r.json();}
+async function tgForm(m,fd){const r=await fetch(`${TG()}/${m}`,{method:'POST',body:fd});return r.json();}
+const _urlCache=new Map(); // fileId → {url, ts}
+async function tgFileURL(fid){
+  if(!fid)return null;
+  const cached=_urlCache.get(fid);
+  if(cached&&Date.now()-cached.ts<50*60*1000)return cached.url;
+  const r=await tgPost('getFile',{file_id:fid});
+  if(!r.ok)return null;
+  const url=`${TGF()}/${r.result.file_path}`;
+  _urlCache.set(fid,{url,ts:Date.now()});
+  return url;
+}
+/* Compress image before upload: max 1920px, quality 0.82 */
+async function compressImage(file, maxPx=1920, quality=0.82){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.naturalWidth, h=img.naturalHeight;
+      if(w>maxPx||h>maxPx){
+        if(w>h){h=Math.round(h*(maxPx/w));w=maxPx;}
+        else{w=Math.round(w*(maxPx/h));h=maxPx;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(blob=>{
+        resolve(blob||file);
+      },'image/jpeg',quality);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
+    img.src=url;
+  });
+}
+
+async function tgSend(file,cap){
+  const compressed=await compressImage(file);
+  const fd=new FormData();
+  fd.append('chat_id',DB.config.chatId);
+  fd.append('photo',compressed,'photo.jpg');
+  if(cap)fd.append('caption',cap);
+  return tgForm('sendPhoto',fd);
+}
+async function tgDel(id){return tgPost('deleteMessage',{chat_id:DB.config.chatId,message_id:id});}
+async function tgUpdates(off=0){return tgPost('getUpdates',{offset:off,limit:100,timeout:0,allowed_updates:['message','channel_post']});}
+function encCap(a,c){let s='#TGG';if(a)s+=`|a:${a}`;if(c)s+=`|c:${c}`;return s;}
+function decCap(t=''){const r={album:'',caption:'',ok:false};if(!t.includes('#TGG'))return r;r.ok=true;const a=t.match(/\|a:([^|]+)/),c=t.match(/\|c:([^|]+)/);if(a)r.album=a[1].trim();if(c)r.caption=c[1].trim();return r;}
+
+/* ═══════ SETUP ═══════ */
+function setSS(msg,type){const el=document.getElementById('setup-status');el.textContent=msg;el.className=`s-status ${type}`;}
+async function doConnect(){
+  const token=document.getElementById('inp-token').value.trim(),chatId=document.getElementById('inp-chat').value.trim();
+  if(!token||!chatId){setSS('Token এবং Chat ID দুটোই লাগবে।','err');return;}
+  setSS('সংযোগ পরীক্ষা করছি…','loading');
+  try{
+    const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chatId,text:'✅ TeleGallery সংযুক্ত!'})});
+    const d=await r.json();
+    if(d.ok){DB.config={token,chatId,demo:false};saveDB();setSS('সংযুক্ত হয়েছে ✓','ok');setTimeout(showApp,500);}
+    else setSS('ব্যর্থ: '+(d.description||'অজানা'),'err');
+  }catch(e){setSS('নেটওয়ার্ক সমস্যা।','err');}
+}
+function loadDemo(){
+  DB.config={token:'demo',chatId:'demo',demo:true};
+  DB.photos=[
+    {uid:'d1',msgId:1,fileId:'',url:'https://picsum.photos/seed/eid1/400/400',album:'Eid 2026',caption:'পরিবার',date:Date.now()-86400000,fav:false},
+    {uid:'d2',msgId:2,fileId:'',url:'https://picsum.photos/seed/eid2/400/400',album:'Eid 2026',caption:'',date:Date.now()-86400000,fav:true},
+    {uid:'d3',msgId:3,fileId:'',url:'https://picsum.photos/seed/eid3/400/400',album:'Eid 2026',caption:'',date:Date.now()-86400000,fav:false},
+    {uid:'d4',msgId:4,fileId:'',url:'https://picsum.photos/seed/nat1/400/400',album:'প্রকৃতি',caption:'',date:Date.now()-86400000*5,fav:false},
+    {uid:'d5',msgId:5,fileId:'',url:'https://picsum.photos/seed/nat2/400/400',album:'প্রকৃতি',caption:'',date:Date.now()-86400000*5,fav:false},
+    {uid:'d6',msgId:6,fileId:'',url:'https://picsum.photos/seed/fam1/400/400',album:'পরিবার',caption:'',date:Date.now()-86400000*8,fav:false},
+    {uid:'d7',msgId:7,fileId:'',url:'https://picsum.photos/seed/r7/400/400',album:'',caption:'',date:Date.now()-3600000,fav:false},
+    {uid:'d8',msgId:8,fileId:'',url:'https://picsum.photos/seed/r8/400/400',album:'',caption:'',date:Date.now()-7200000,fav:false},
+  ];
+  DB.trash=[
+    {uid:'t1',msgId:90,fileId:'',url:'https://picsum.photos/seed/t1/400/400',album:'পুরনো',caption:'',date:Date.now()-86400000*20,fav:false,deletedAt:Date.now()-86400000*3},
+    {uid:'t2',msgId:91,fileId:'',url:'https://picsum.photos/seed/t2/400/400',album:'',caption:'',date:Date.now()-86400000*25,fav:false,deletedAt:Date.now()-86400000*1},
+  ];
+  DB.albums=['Eid 2026','প্রকৃতি','পরিবার'];
+  saveDB();showApp();
+}
+function showApp(){
+  document.getElementById('s-setup').classList.remove('active');
+  document.getElementById('s-app').classList.add('active');
+  autoCleanTrash();renderAll();updateCfgDisplay();updateTrashBadge();
+  if(!DB.config.demo)startPolling();
+}
+function resetSetup(){if(!confirm('সেটআপ পরিবর্তন করবেন?'))return;DB.config={token:'',chatId:'',demo:false};saveDB();location.reload();}
+
+/* ═══════ TRASH AUTO CLEAN ═══════ */
+async function autoCleanTrash(){
+  const LIMIT=30*86400000,now=Date.now();
+  const expired=DB.trash.filter(p=>now-p.deletedAt>LIMIT);
+  for(const p of expired){if(!DB.config.demo)await tgDel(p.msgId).catch(()=>{});}
+  DB.trash=DB.trash.filter(p=>now-p.deletedAt<=LIMIT);
+  saveDB();
+}
+
+/* ═══════ TABS ═══════ */
+function switchTab(tab){
+  ['pics','albums','stories','more'].forEach(t=>{document.getElementById(`tab-${t}`).style.display='none';const b=document.getElementById(`bn-${t}`);if(b)b.classList.remove('active');});
+  document.getElementById(`tab-${tab}`).style.display='flex';
+  const b=document.getElementById(`bn-${tab}`);if(b)b.classList.add('active');
+  document.getElementById('topbar-title').textContent={pics:'Gallery',albums:'Albums',stories:'Stories',more:'More'}[tab]||'Gallery';
+  document.getElementById('fab-wrap').style.display=(tab==='pics'||tab==='albums')?'block':'none';
+  if(tab==='albums')renderAlbums();
+  if(tab==='stories')renderStories();
+  if(tab==='more'){updateCfgDisplay();updateBackupUI();}
+}
+
+/* ═══════ RENDER PICTURES ═══════ */
+let selMode=false,selUIDs=new Set();
+function renderAll(){renderPics();}
+
+/* Virtual scroll — renders BATCH_SIZE groups at a time, loads more on scroll */
+const BATCH=60; // photos per batch
+let _allPhotos=[],_rendered=0;
+
+function renderPics(){
+  const cont=document.getElementById('pics-content'),empty=document.getElementById('pics-empty');
+  _allPhotos=[...DB.photos].sort((a,b)=>b.date-a.date);
+  if(!_allPhotos.length){cont.innerHTML='';empty.style.display='flex';return;}
+  empty.style.display='none';
+  _rendered=0;
+  cont.innerHTML='';
+  _appendBatch(cont);
+  if(selMode)cont.classList.add('sel-mode');
+  // Watch scroll to load more
+  const scroller=document.getElementById('pics-scroll');
+  scroller.onscroll=()=>{
+    if(scroller.scrollTop+scroller.clientHeight>=scroller.scrollHeight-200){
+      _appendBatch(cont);
+    }
+  };
+}
+
+function _appendBatch(cont){
+  if(_rendered>=_allPhotos.length)return;
+  const batch=_allPhotos.slice(_rendered,_rendered+BATCH);
+  _rendered+=batch.length;
+  // Group this batch by date
+  const groups={};
+  batch.forEach(p=>{const l=dateLabel(p.date);if(!groups[l])groups[l]=[];groups[l].push(p);});
+  const frag=document.createDocumentFragment();
+  Object.entries(groups).forEach(([label,gp])=>{
+    // Find or create the date section
+    let sec=cont.querySelector(`[data-date="${CSS.escape(label)}"]`);
+    if(!sec){
+      sec=document.createElement('div');
+      sec.dataset.date=label;
+      const hdr=document.createElement('div');
+      hdr.className='date-header';hdr.textContent=label;
+      sec.appendChild(hdr);
+      const grid=document.createElement('div');
+      grid.className='pic-grid';
+      sec.appendChild(grid);
+      frag.appendChild(sec);
+    }
+    const grid=sec.querySelector('.pic-grid');
+    gp.forEach(p=>{
+      const tUrl=p.thumbUrl||p.url;
+      const cell=document.createElement('div');
+      cell.className='pic-cell'+(selUIDs.has(p.uid)?' chk':'');
+      cell.id='cell-'+p.uid;
+      cell.setAttribute('ontouchstart',`lpStart(event,'${p.uid}')`);
+      cell.setAttribute('ontouchend','lpEnd()');
+      cell.setAttribute('ontouchmove','lpCancel()');
+      cell.setAttribute('onclick',`onCellClick('${p.uid}')`);
+      const img=document.createElement('img');
+      img.dataset.src=tUrl;
+      img.alt='';
+      img.onload=function(){this.classList.add('vis');};
+      const chk=document.createElement('div');
+      chk.className='pic-check';
+      cell.appendChild(img);cell.appendChild(chk);
+      grid.appendChild(cell);
+    });
+  });
+  cont.appendChild(frag);
+  lazyLoad(cont);
+}
+function dateLabel(ts){
+  const d=new Date(ts),now=new Date();
+  const diff=(new Date(now.getFullYear(),now.getMonth(),now.getDate())-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000;
+  if(diff===0)return'Today';if(diff===1)return'Yesterday';
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+}
+function lazyLoad(root){
+  const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const i=e.target;i.src=i.dataset.src;obs.unobserve(i);}});},{rootMargin:'200px'});
+  root.querySelectorAll('img[data-src]').forEach(i=>obs.observe(i));
+}
+
+/* ═══════ SELECT ═══════ */
+function onCellClick(uid){if(selMode)toggleSel(uid);else openViewer(uid);}
+function onCellLong(uid){if(!selMode)enableSel();toggleSel(uid);}
+function enableSel(){
+  selMode=true;
+  document.getElementById('tb-normal').style.display='none';
+  const ts=document.getElementById('tb-select');ts.style.display='flex';ts.style.flex='1';
+  document.getElementById('pics-content').classList.add('sel-mode');
+}
+function cancelSelect(){
+  selMode=false;selUIDs.clear();
+  document.getElementById('tb-normal').style.display='flex';
+  document.getElementById('tb-select').style.display='none';
+  document.getElementById('pics-content').classList.remove('sel-mode');
+  document.querySelectorAll('#pics-content .pic-cell.chk').forEach(c=>c.classList.remove('chk'));
+}
+function toggleSel(uid){
+  if(selUIDs.has(uid))selUIDs.delete(uid);else selUIDs.add(uid);
+  const c=document.getElementById(`cell-${uid}`);if(c){if(selUIDs.has(uid))c.classList.add('chk');else c.classList.remove('chk');}
+  document.getElementById('tb-sel-count').textContent=`${selUIDs.size}টি বেছে নেওয়া`;
+}
+function selectAll(){DB.photos.forEach(p=>{selUIDs.add(p.uid);const c=document.getElementById(`cell-${p.uid}`);if(c)c.classList.add('chk');});document.getElementById('tb-sel-count').textContent=`${selUIDs.size}টি বেছে নেওয়া`;}
+
+/* ═══════ MOVE TO TRASH (soft delete) ═══════ */
+function moveToTrash(){
+  if(!selUIDs.size){toast('ছবি বেছে নিন');return;}
+  const uids=[...selUIDs];cancelSelect();
+  uids.forEach(uid=>{const idx=DB.photos.findIndex(p=>p.uid===uid);if(idx<0)return;DB.trash.push({...DB.photos[idx],deletedAt:Date.now()});DB.photos.splice(idx,1);});
+  rebuildAlbums();saveDB();renderAll();updateTrashBadge();toast(`${uids.length}টি Recycle Bin-এ গেছে`);
+}
+function moveCurrentToTrash(){
+  const p=vPhotos[vIdx];if(!p)return;closeViewer();
+  const idx=DB.photos.findIndex(x=>x.uid===p.uid);
+  if(idx>=0){DB.trash.push({...DB.photos[idx],deletedAt:Date.now()});DB.photos.splice(idx,1);rebuildAlbums();saveDB();renderAll();updateTrashBadge();toast('Recycle Bin-এ গেছে');}
+}
+
+/* ═══════ RECYCLE BIN ═══════ */
+let tSelMode=false,tSelUIDs=new Set();
+function updateTrashBadge(){const cnt=DB.trash.length,el=document.getElementById('tbadge');if(el){el.textContent=cnt;el.className='tbadge'+(cnt?' show':'');}}
+function openTrash(){document.getElementById('s-trash').classList.add('active');renderTrash();}
+function closeTrash(){document.getElementById('s-trash').classList.remove('active');cancelTrashSel();}
+function renderTrash(){
+  const grid=document.getElementById('trash-grid'),empty=document.getElementById('trash-empty');
+  const sorted=[...DB.trash].sort((a,b)=>b.deletedAt-a.deletedAt);
+  if(!sorted.length){grid.innerHTML='';empty.style.display='flex';return;}
+  empty.style.display='none';
+  const now=Date.now();
+  grid.innerHTML=sorted.map(p=>{
+    const dl=Math.max(0,30-Math.floor((now-p.deletedAt)/86400000));
+    return `<div class="pic-cell trash-cell${tSelUIDs.has(p.uid)?' chk':''}" id="tcell-${p.uid}" ontouchstart="lpStart(event,'${p.uid}','trash')" ontouchend="lpEnd()" ontouchmove="lpCancel()" onclick="onTCell('${p.uid}')"><img data-src="${p.url}" alt="" onload="this.classList.add('vis')"><div class="pic-check"></div><div class="trash-days-lbl">${dl}일</div></div>`;
+  }).join('');
+  lazyLoad(grid);
+  if(tSelMode)grid.classList.add('sel-mode');
+  document.getElementById('t-sel-all-btn').style.display=tSelMode?'flex':'none';
+  document.getElementById('t-cancel-btn').style.display=tSelMode?'flex':'none';
+  document.getElementById('t-action-bar').className='t-action-bar'+(tSelMode?' active':'');
+  document.getElementById('t-sel-count').textContent=`${tSelUIDs.size}টি বেছে নেওয়া`;
+}
+function onTCell(uid){if(!tSelMode)enableTSel();toggleTSel(uid);}
+function onTCellLong(uid){if(!tSelMode)enableTSel();toggleTSel(uid);}
+function enableTSel(){tSelMode=true;document.getElementById('trash-grid').classList.add('sel-mode');document.getElementById('t-sel-all-btn').style.display='flex';document.getElementById('t-cancel-btn').style.display='flex';document.getElementById('t-action-bar').classList.add('active');}
+function cancelTrashSel(){tSelMode=false;tSelUIDs.clear();document.getElementById('trash-grid').classList.remove('sel-mode');document.querySelectorAll('#trash-grid .chk').forEach(c=>c.classList.remove('chk'));document.getElementById('t-sel-all-btn').style.display='none';document.getElementById('t-cancel-btn').style.display='none';document.getElementById('t-action-bar').classList.remove('active');}
+function toggleTSel(uid){if(tSelUIDs.has(uid))tSelUIDs.delete(uid);else tSelUIDs.add(uid);const c=document.getElementById(`tcell-${uid}`);if(c){if(tSelUIDs.has(uid))c.classList.add('chk');else c.classList.remove('chk');}document.getElementById('t-sel-count').textContent=`${tSelUIDs.size}টি বেছে নেওয়া`;}
+function trashSelAll(){DB.trash.forEach(p=>{tSelUIDs.add(p.uid);const c=document.getElementById(`tcell-${p.uid}`);if(c)c.classList.add('chk');});document.getElementById('t-sel-count').textContent=`${tSelUIDs.size}টি বেছে নেওয়া`;}
+function restoreSelected(){
+  if(!tSelUIDs.size){toast('ছবি বেছে নিন');return;}
+  const uids=[...tSelUIDs];
+  uids.forEach(uid=>{const idx=DB.trash.findIndex(p=>p.uid===uid);if(idx<0)return;const{deletedAt,...p}=DB.trash[idx];DB.photos.unshift(p);DB.trash.splice(idx,1);});
+  rebuildAlbums();saveDB();renderAll();renderTrash();updateTrashBadge();cancelTrashSel();toast(`${uids.length}টি পুনরুদ্ধার হয়েছে`);
+}
+function permDelConfirm(){if(!tSelUIDs.size){toast('ছবি বেছে নিন');return;}showConfirm(`${tSelUIDs.size}টি স্থায়ীভাবে মুছবেন?`,'Telegram থেকেও চলে যাবে।',doPermanentDelete);}
+async function doPermanentDelete(){
+  const uids=[...tSelUIDs];cancelTrashSel();toast(`${uids.length}টি মুছছি…`);
+  for(const uid of uids){const p=DB.trash.find(x=>x.uid===uid);if(!p)continue;if(!DB.config.demo)await tgDel(p.msgId).catch(()=>{});DB.trash=DB.trash.filter(x=>x.uid!==uid);}
+  saveDB();renderTrash();updateTrashBadge();toast(`${uids.length}টি স্থায়ীভাবে মুছে গেছে`);
+}
+function emptyTrashConfirm(){
+  if(!DB.trash.length){toast('Bin ইতিমধ্যে খালি');return;}
+  showConfirm(`সব ${DB.trash.length}টি মুছবেন?`,'Telegram থেকেও স্থায়ীভাবে যাবে।',async()=>{
+    toast('সব মুছছি…');
+    for(const p of DB.trash){if(!DB.config.demo)await tgDel(p.msgId).catch(()=>{});}
+    DB.trash=[];saveDB();renderTrash();updateTrashBadge();toast('Recycle Bin খালি হয়েছে');
+  });
+}
+
+/* ═══════ CONFIRM DIALOG ═══════ */
+let cfmCB=null;
+function showConfirm(title,sub,cb){document.getElementById('confirm-title').textContent=title;document.getElementById('confirm-sub').textContent=sub;cfmCB=cb;document.getElementById('confirm-overlay').classList.add('active');}
+function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('active');cfmCB=null;}
+document.getElementById('confirm-ok').onclick=()=>{closeConfirm();if(cfmCB)cfmCB();};
+
+/* ═══════ VIEWER ═══════ */
+let vPhotos=[],vIdx=0,vTouchX=0;
+function openViewer(uid){
+  vPhotos=[...DB.photos].sort((a,b)=>b.date-a.date);
+  vIdx=vPhotos.findIndex(p=>p.uid===uid);if(vIdx<0)vIdx=0;
+  buildSlides();document.getElementById('s-viewer').classList.add('active');setVInfo();
+}
+function buildSlides(){
+  const sw=document.getElementById('v-swiper');sw.style.transition='none';sw.style.transform=`translateX(-${vIdx*100}%)`;
+  sw.innerHTML=vPhotos.map(p=>`<div class="v-slide"><img src="${p.url}" alt=""></div>`).join('');
+  setupViewerTouch();
+}
+function setupViewerTouch(){
+  const body=document.getElementById('viewer-body');
+  let startX=0,startY=0,scale=1,lastScale=1,originX=50,originY=50;
+  let pinching=false,dist0=0;
+  function dist(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);}
+  function midpoint(t){return{x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2};}
+  function curImg(){const slides=body.querySelectorAll('.v-slide img');return slides[vIdx]||null;}
+  function applyZoom(img,s,ox,oy){img.style.transform=`scale(${s})`;img.style.transformOrigin=`${ox}% ${oy}%`;}
+  body.ontouchstart=e=>{
+    if(e.touches.length===2){
+      pinching=true;dist0=dist(e.touches);
+      const m=midpoint(e.touches);
+      const r=body.getBoundingClientRect();
+      originX=((m.x-r.left)/r.width)*100;
+      originY=((m.y-r.top)/r.height)*100;
+      lastScale=scale;
+    } else if(e.touches.length===1){
+      pinching=false;startX=e.touches[0].clientX;startY=e.touches[0].clientY;
+    }
+  };
+  body.ontouchmove=e=>{
+    if(e.touches.length===2&&pinching){
+      e.preventDefault();
+      const d=dist(e.touches);
+      scale=Math.min(5,Math.max(1,lastScale*(d/dist0)));
+      const img=curImg();if(img)applyZoom(img,scale,originX,originY);
+    }
+  };
+  body.ontouchend=e=>{
+    if(pinching&&e.touches.length<2){pinching=false;lastScale=scale;return;}
+    if(pinching)return;
+    if(scale>1)return; // don't swipe when zoomed in
+    const dx=e.changedTouches[0].clientX-startX;
+    const dy=Math.abs(e.changedTouches[0].clientY-startY);
+    if(Math.abs(dx)>50&&dy<60){if(dx<0)vNav(1);else vNav(-1);}
+  };
+  // Double tap to reset zoom
+  let lastTap=0;
+  body.onclick=e=>{
+    const now=Date.now();
+    if(now-lastTap<300){
+      scale=1;lastScale=1;
+      const img=curImg();if(img)applyZoom(img,1,50,50);
+    }
+    lastTap=now;
+  };
+}
+function setVInfo(){const p=vPhotos[vIdx];if(!p)return;document.getElementById('viewer-title').textContent=p.caption||(p.album||'ছবি');}
+function vNav(dir){
+  const n=vIdx+dir;if(n<0||n>=vPhotos.length)return;
+  // Reset zoom on current slide before navigating
+  const slides=document.querySelectorAll('.v-slide img');
+  if(slides[vIdx]){slides[vIdx].style.transform='scale(1)';}
+  vIdx=n;
+  const sw=document.getElementById('v-swiper');
+  sw.style.transition='transform .22s ease';
+  sw.style.transform=`translateX(-${vIdx*100}%)`;
+  setVInfo();
+}
+function closeViewer(){document.getElementById('s-viewer').classList.remove('active');vPhotos=[];vIdx=0;}
+function toggleFav(){const p=vPhotos[vIdx];if(!p)return;const ph=DB.photos.find(x=>x.uid===p.uid);if(ph){ph.fav=!ph.fav;saveDB();toast(ph.fav?'Favourites-এ যোগ':'Favourites থেকে বাদ');}}
+function showInfo(){const p=vPhotos[vIdx];if(!p)return;toast(`${new Date(p.date).toLocaleDateString('bn-BD')} | ${p.album||'কোনো অ্যালবাম নেই'}`);}
+function sharePhoto(){
+  const p=vPhotos[vIdx];if(!p)return;
+  // Use Android native share sheet if available
+  if(typeof Android!=='undefined'&&Android.shareUrl){
+    Android.shareUrl(p.url, p.caption||'TeleGallery');
+  } else if(navigator.share){
+    navigator.share({url:p.url}).catch(()=>{});
+  } else {
+    navigator.clipboard?.writeText(p.url);
+    toast('লিঙ্ক কপি হয়েছে');
+  }
+}
+
+/* ═══════ ALBUMS ═══════ */
+function renderAlbums(){
+  const cont=document.getElementById('albums-content');
+  if(!DB.albums.length){cont.innerHTML='<div class="no-content">এখনো অ্যালবাম নেই।<br>আপলোডের সময় তৈরি করুন।</div>';return;}
+  let html='<div class="albums-section-title">Essential albums</div><div class="album-grid">';
+  DB.albums.forEach(album=>{
+    const ps=DB.photos.filter(p=>p.album===album);
+    html+=`<div class="album-card" onclick="openAlbumDetail('${album}')"><div class="album-thumb-grid${ps.length===1?' single':''}">${ps.slice(0,4).map(p=>`<img data-src="${p.url}" alt="" onload="this.classList.add('vis')">`).join('')}</div><div class="album-card-info"><div class="album-card-name">${album}</div><div class="album-card-count">${ps.length}</div></div></div>`;
+  });
+  html+='</div>';cont.innerHTML=html;lazyLoad(cont);
+}
+let curAlbum='';
+function openAlbumDetail(album){
+  curAlbum=album;document.getElementById('album-detail-title').textContent=album;document.getElementById('s-album-detail').classList.add('active');
+  const ps=DB.photos.filter(p=>p.album===album).sort((a,b)=>b.date-a.date);
+  const g=document.getElementById('album-detail-grid');
+  g.innerHTML=ps.map(p=>`<div class="pic-cell" onclick="openViewer('${p.uid}')"><img data-src="${p.url}" alt="" onload="this.classList.add('vis')"></div>`).join('');lazyLoad(g);
+}
+function closeAlbumDetail(){document.getElementById('s-album-detail').classList.remove('active');}
+function deleteAlbum(){
+  const ps=DB.photos.filter(p=>p.album===curAlbum);
+  showConfirm(`"${curAlbum}" মুছবেন?`,`${ps.length}টি ছবি Recycle Bin-এ যাবে।`,()=>{
+    ps.forEach(p=>{DB.trash.push({...p,deletedAt:Date.now()});DB.photos=DB.photos.filter(x=>x.uid!==p.uid);});
+    rebuildAlbums();saveDB();renderAll();renderAlbums();updateTrashBadge();closeAlbumDetail();toast(`"${curAlbum}" Recycle Bin-এ গেছে`);
+  });
+}
+
+/* ═══════ STORIES ═══════ */
+function renderStories(){
+  const cont=document.getElementById('stories-content');
+  if(!DB.albums.length&&!DB.photos.length){cont.innerHTML='<div class="no-content">ছবি আপলোড করলে স্টোরি তৈরি হবে।</div>';return;}
+  let html='<div class="stories-highlights">';
+  DB.albums.slice(0,5).forEach(album=>{const p=DB.photos.find(x=>x.album===album);if(!p)return;html+=`<div class="highlight-item" onclick="openAlbumDetail('${album}')"><div class="highlight-thumb"><img data-src="${p.url}" alt="" onload="this.classList.add('vis')"></div><div class="highlight-name">${album}</div></div>`;});
+  html+='</div><div class="stories-heading">Explore your stories</div>';
+  if(!DB.albums.length)html+='<div class="no-content">অ্যালবাম তৈরি হলে স্টোরি দেখা যাবে।</div>';
+  DB.albums.forEach(album=>{
+    const ps=DB.photos.filter(p=>p.album===album).sort((a,b)=>a.date-b.date);if(!ps.length)return;
+    const cover=ps[ps.length-1];
+    const s=new Date(ps[0].date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const e=new Date(cover.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    html+=`<div class="story-card" onclick="openAlbumDetail('${album}')"><img class="story-card-img" data-src="${cover.url}" alt="" onload="this.classList.add('vis')"><div class="story-card-overlay"></div><div class="story-heart"><svg width="16" height="16" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div class="story-card-foot"><div class="story-card-title">${album}</div><div class="story-card-date">${s} – ${e}</div></div></div>`;
+  });
+  cont.innerHTML=html;lazyLoad(cont);
+}
+
+/* ═══════ UPLOAD ═══════ */
+let pickedFiles=[];
+function openUpload(){
+  pickedFiles=[];
+  ['cam-inp','file-inp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('prev-hint').style.display='block';
+  document.getElementById('prev-count').style.display='none';
+  document.getElementById('prev-area').querySelectorAll('.prev-img').forEach(i=>i.remove());
+  document.getElementById('upload-status').className='sheet-status';
+  document.getElementById('prog-wrap').style.display='none';
+  document.getElementById('prog-bar').style.width='0%';
+  document.getElementById('btn-upload').disabled=false;
+  document.getElementById('caption-inp').value='';
+  document.getElementById('new-album-inp').value='';
+  const sel=document.getElementById('album-sel');
+  sel.innerHTML='<option value="">কোনো অ্যালবাম নেই</option>';
+  DB.albums.forEach(a=>sel.innerHTML+=`<option value="${a}">${a}</option>`);
+  document.getElementById('s-upload').classList.add('active');
+}
+let _uploading=false;
+function closeUpload(){
+  document.getElementById('s-upload').classList.remove('active');
+  // শুধু upload না চললে pickedFiles clear করো
+  if(!_uploading) pickedFiles=[];
+}
+function onFilesPicked(e){
+  pickedFiles=Array.from(e.target.files);if(!pickedFiles.length)return;
+  const pa=document.getElementById('prev-area');pa.querySelectorAll('.prev-img').forEach(i=>i.remove());
+  const img=document.createElement('img');img.src=URL.createObjectURL(pickedFiles[0]);img.className='prev-img';pa.appendChild(img);
+  document.getElementById('prev-hint').style.display='none';
+  if(pickedFiles.length>1){document.getElementById('prev-count').textContent=`+${pickedFiles.length-1}`;document.getElementById('prev-count').style.display='block';}
+}
+function addAlbumFromInput(){
+  const v=document.getElementById('new-album-inp').value.trim();if(!v)return;
+  if(!DB.albums.includes(v))DB.albums.push(v);
+  const sel=document.getElementById('album-sel');if(!sel.querySelector(`option[value="${v}"]`))sel.innerHTML+=`<option value="${v}">${v}</option>`;
+  sel.value=v;document.getElementById('new-album-inp').value='';saveDB();
+}
+function setUS(msg,type){const el=document.getElementById('upload-status');if(!el)return;el.textContent=msg;el.className=`sheet-status ${type}`;}
+async function startUpload(){
+  addAlbumFromInput();
+  if(!pickedFiles.length){setUS('আগে ছবি বেছে নিন','err');return;}
+  // local copy — closeUpload বা যেকোনো কিছু pickedFiles বদলালেও loop থামবে না
+  const files=[...pickedFiles];
+  const total=files.length;
+  const album=document.getElementById('album-sel').value;
+  const caption=document.getElementById('caption-inp').value.trim();
+  const btn=document.getElementById('btn-upload');
+  btn.disabled=true;
+  _uploading=true;
+  document.getElementById('prog-wrap').style.display='block';
+  let done=0;
+  for(const file of files){
+    setUS(`আপলোড হচ্ছে (${done+1}/${total})…`,'loading');
+    try{
+      if(DB.config.demo){
+        await new Promise(r=>setTimeout(r,500));
+        const uid='u'+Date.now()+Math.random().toString(36).slice(2,5);
+        DB.photos.unshift({uid,msgId:Date.now(),fileId:'',url:URL.createObjectURL(file),album,caption,date:Date.now(),fav:false});
+        if(album&&!DB.albums.includes(album))DB.albums.push(album);
+      }else{
+        const r=await tgSend(file,encCap(album,caption));
+        if(!r.ok){setUS('ত্রুটি: '+r.description,'err');break;}
+        const msg=r.result;
+        const photos=msg.photo||[];
+        const thumbFid=photos.length>1?photos[1].file_id:(photos[0]?.file_id||'');
+        const fullFid=photos.length?photos[photos.length-1].file_id:'';
+        const thumbUrl=thumbFid?await tgFileURL(thumbFid):'';
+        const fullUrl=(fullFid&&fullFid!==thumbFid)?await tgFileURL(fullFid):thumbUrl;
+        DB.photos.unshift({uid:'p'+msg.message_id,msgId:msg.message_id,
+          fileId:fullFid,thumbFileId:thumbFid,
+          url:fullUrl||'',thumbUrl:thumbUrl||'',
+          album,caption,date:Date.now(),fav:false});
+        if(album&&!DB.albums.includes(album))DB.albums.push(album);
+        if(DB.lastUpdateId<msg.message_id)DB.lastUpdateId=msg.message_id;
+      }
+    }catch(err){setUS('নেটওয়ার্ক সমস্যা','err');btn.disabled=false;_uploading=false;return;}
+    done++;
+    // local total ব্যবহার করছি — কোনো divide-by-zero নেই
+    const pct=Math.round(done/total*100);
+    const pb=document.getElementById('prog-bar');if(pb)pb.style.width=pct+'%';
+    saveDB();renderAll();
+  }
+  _uploading=false;
+  pickedFiles=[];
+  rebuildAlbums();saveDB();renderAll();
+  setUS(`${done}টি আপলোড সম্পন্ন ✓`,'ok');
+  btn.disabled=false;
+  toast(`${done}টি ছবি আপলোড হয়েছে`);
+  setTimeout(closeUpload,1200);
+}
+
+/* ═══════ SYNC ═══════ */
+let pollTimer=null;
+function setSyncUI(state,msg){
+  const dot=document.getElementById('sync-dot'),txt=document.getElementById('sync-text');if(!dot)return;
+  dot.className='sync-dot';if(state==='live')dot.classList.add('live');else if(state==='syncing')dot.classList.add('syncing');else if(state==='err')dot.classList.add('err');
+  if(txt)txt.textContent=msg||{idle:'তৈরি',syncing:'Sync হচ্ছে…',live:'Live sync চলছে',err:'সংযোগ সমস্যা'}[state];
+}
+async function manualSync(){if(DB.config.demo){toast('Demo মোডে sync হয় না');return;}setSyncUI('syncing');await syncFromTG();}
+let _syncing=false;
+async function syncFromTG(){
+  if(DB.config.demo||_syncing)return;
+  _syncing=true;setSyncUI('syncing');
+  try{
+    const r=await tgUpdates(DB.lastUpdateId||0);if(!r.ok){setSyncUI('err','Telegram ত্রুটি');return;}
+    let cnt=0;
+    for(const upd of r.result){
+      const msg=upd.message||upd.channel_post;if(!msg)continue;
+      if(upd.update_id>=DB.lastUpdateId)DB.lastUpdateId=upd.update_id+1;
+      if(!msg.photo)continue;
+      const uid='p'+msg.message_id;
+      if(DB.photos.find(p=>p.uid===uid)||DB.trash.find(p=>p.uid===uid))continue;
+      const {album,caption,ok}=decCap(msg.caption||'');if(!ok&&msg.caption)continue;
+      const photos=msg.photo||[];
+      const thumbFid=photos.length>1?photos[1].file_id:(photos[0]?.file_id||'');
+      const fullFid=photos.length?photos[photos.length-1].file_id:'';
+      const thumbUrl=thumbFid?await tgFileURL(thumbFid):'';
+      const fullUrl=(fullFid&&fullFid!==thumbFid)?await tgFileURL(fullFid):thumbUrl;
+      DB.photos.unshift({uid,msgId:msg.message_id,
+        fileId:fullFid,thumbFileId:thumbFid,
+        url:fullUrl||'',thumbUrl:thumbUrl||'',
+        album,caption,date:msg.date*1000,fav:false});
+      if(album&&!DB.albums.includes(album))DB.albums.push(album);cnt++;
+    }
+    rebuildAlbums();saveDB();if(cnt){renderAll();toast(`${cnt}টি নতুন ছবি sync হলো`);}setSyncUI('live');
+  }catch(e){setSyncUI('err','নেটওয়ার্ক সমস্যা');}
+  finally{_syncing=false;}
+}
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  syncFromTG();
+  pollTimer=setInterval(syncFromTG,15000);
+}
+// Stop polling when app goes background (prevents Telegram conflict error)
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+  } else {
+    if(!DB.config.demo) startPolling();
+  }
+});
+
+/* ═══════ SEARCH ═══════ */
+function openSearch(){document.getElementById('s-search').classList.add('active');setTimeout(()=>document.getElementById('search-inp').focus(),100);}
+function closeSearch(){document.getElementById('s-search').classList.remove('active');document.getElementById('search-inp').value='';document.getElementById('search-grid').style.display='none';document.getElementById('search-hint').style.display='block';}
+function doSearch(q){
+  q=q.trim().toLowerCase();if(!q){document.getElementById('search-grid').style.display='none';document.getElementById('search-hint').style.display='block';return;}
+  const res=DB.photos.filter(p=>(p.album||'').toLowerCase().includes(q)||(p.caption||'').toLowerCase().includes(q)||new Date(p.date).toLocaleDateString().includes(q));
+  document.getElementById('search-hint').style.display='none';const g=document.getElementById('search-grid');g.style.display='grid';
+  g.innerHTML=res.map(p=>`<div class="pic-cell" onclick="openViewer('${p.uid}')"><img src="${p.url}" alt="" onload="this.classList.add('vis')"></div>`).join('')||'<div class="search-hint">ফলাফল নেই</div>';
+}
+
+/* ═══════ HELPERS ═══════ */
+function rebuildAlbums(){const s=new Set();DB.photos.forEach(p=>{if(p.album)s.add(p.album);});DB.albums=[...s];}
+function updateCfgDisplay(){
+  const t=DB.config.token,te=document.getElementById('cfg-token'),ce=document.getElementById('cfg-chat'),cn=document.getElementById('cfg-count');if(!te)return;
+  te.textContent=DB.config.demo?'(ডেমো)':t?t.slice(0,8)+'…'+t.slice(-4):'—';ce.textContent=DB.config.demo?'(ডেমো)':DB.config.chatId||'—';cn.textContent=DB.photos.length+'টি';
+}
+function clearCacheConfirm(){showConfirm('ক্যাশ মুছবেন?','Telegram-এর ছবি থাকবে।',()=>{DB.photos=[];DB.albums=[];DB.lastUpdateId=0;saveDB();renderAll();renderAlbums();toast('ক্যাশ মুছে গেছে। Sync করুন।');});}
+let tTimer;
+function toast(msg,dur=2400){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tTimer);tTimer=setTimeout(()=>el.classList.remove('show'),dur);}
+
+/* ═══════ ANDROID BACK ═══════ */
+history.pushState(null,'',location.href);
+window.onpopstate=()=>{
+  if(document.getElementById('confirm-overlay').classList.contains('active')){closeConfirm();history.pushState(null,'',location.href);return;}
+  if(document.getElementById('s-upload').classList.contains('active')){closeUpload();history.pushState(null,'',location.href);return;}
+  if(document.getElementById('s-viewer').classList.contains('active')){closeViewer();history.pushState(null,'',location.href);return;}
+  if(document.getElementById('s-album-detail').classList.contains('active')){closeAlbumDetail();history.pushState(null,'',location.href);return;}
+  if(document.getElementById('s-search').classList.contains('active')){closeSearch();history.pushState(null,'',location.href);return;}
+  if(document.getElementById('s-trash').classList.contains('active')){closeTrash();history.pushState(null,'',location.href);return;}
+  if(tSelMode){cancelTrashSel();history.pushState(null,'',location.href);return;}
+  if(selMode){cancelSelect();history.pushState(null,'',location.href);return;}
+};
+
+/* ═══════ INIT ═══════ */
+loadDB();
+if(DB.config.token&&DB.config.chatId)showApp();
+else document.getElementById('s-setup').classList.add('active');
+
+/* ═══════ LONG PRESS (Android touch) ═══════ */
+let _lpTimer=null,_lpUID=null,_lpCtx='pics';
+function lpStart(e,uid,ctx){
+  _lpUID=uid; _lpCtx=ctx||'pics';
+  _lpTimer=setTimeout(()=>{
+    _lpTimer=null;
+    if(_lpCtx==='trash') onTCellLong(_lpUID);
+    else onCellLong(_lpUID);
+  },450);
+}
+function lpEnd(){if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}}
+function lpCancel(){if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}}
+
+/* ═══════ AUTO BACKUP ═══════ */
+function updateBackupUI(){
+  const enabled = typeof Android!=='undefined' ? Android.isBackupEnabled() : false;
+  const toggle = document.getElementById('backup-toggle');
+  const knob = document.getElementById('backup-toggle-knob');
+  const statusTxt = document.getElementById('backup-status-text');
+  const initBtn = document.getElementById('initial-backup-btn');
+  if(!toggle) return;
+  if(enabled){
+    toggle.style.background='#3d90f5';
+    knob.style.transform='translateX(18px)';
+    statusTxt.textContent='চালু আছে — নতুন ছবি auto upload হবে';
+    if(initBtn) initBtn.style.display='flex';
+  } else {
+    toggle.style.background='#333';
+    knob.style.transform='translateX(0)';
+    statusTxt.textContent='বন্ধ আছে';
+    if(initBtn) initBtn.style.display='none';
+  }
+}
+
+function toggleAutoBackup(){
+  if(typeof Android==='undefined'){toast('APK-এ কাজ করবে');return;}
+  const enabled=Android.isBackupEnabled();
+  Android.setBackupEnabled(!enabled, DB.config.token, DB.config.chatId);
+  setTimeout(updateBackupUI, 300);
+}
+
+function startFullBackup(){
+  if(typeof Android==='undefined'){toast('APK-এ কাজ করবে');return;}
+  if(!DB.config.token||!DB.config.chatId){toast('আগে Telegram সংযুক্ত করুন');return;}
+  showConfirm('সব ছবি Backup নেবেন?',
+    'ফোনের সব ছবি Telegram-এ যাবে। অনেক সময় লাগতে পারে।',
+    ()=>{
+      Android.startInitialBackup(DB.config.token, DB.config.chatId);
+      document.getElementById('backup-progress-row').style.display='block';
+    });
+}
+
+// Called by MainActivity broadcast
+function onBackupProgress(done, total, current){
+  const row=document.getElementById('backup-progress-row');
+  const bar=document.getElementById('backup-progress-bar');
+  const lbl=document.getElementById('backup-progress-label');
+  if(!row)return;
+  if(done>=total&&total>0){
+    lbl.textContent=`Backup সম্পন্ন — ${total}টি ছবি ✓`;
+    bar.style.width='100%';
+    setTimeout(()=>{row.style.display='none';},3000);
+    toast(`${total}টি ছবি Telegram-এ backup হয়েছে`);
+  } else {
+    row.style.display='block';
+    lbl.textContent=`Backup হচ্ছে (${done}/${total}): ${current}`;
+    if(total>0) bar.style.width=Math.round(done/total*100)+'%';
+  }
+}
+
+// Called when a photo is auto-uploaded
+function onPhotoAutoUploaded(imgUrl, album){
+  const uid='auto_'+Date.now()+Math.random().toString(36).slice(2,5);
+  DB.photos.unshift({uid,msgId:0,fileId:'',url:imgUrl,album:album||'',caption:'Auto Backup',date:Date.now(),fav:false});
+  if(album&&!DB.albums.includes(album))DB.albums.push(album);
+  saveDB();renderAll();
+}
+
+/* ═══════ ANDROID BACK HANDLER ═══════ */
+function handleAndroidBack(){
+  if(document.getElementById('confirm-overlay').classList.contains('active')){closeConfirm();return;}
+  if(document.getElementById('s-upload').classList.contains('active')){closeUpload();return;}
+  if(document.getElementById('s-viewer').classList.contains('active')){closeViewer();return;}
+  if(document.getElementById('s-album-detail').classList.contains('active')){closeAlbumDetail();return;}
+  if(document.getElementById('s-search').classList.contains('active')){closeSearch();return;}
+  if(document.getElementById('s-trash').classList.contains('active')){closeTrash();return;}
+  if(tSelMode){cancelTrashSel();return;}
+  if(selMode){cancelSelect();return;}
+  // At root — exit app
+  if(typeof Android!=='undefined') Android.exitApp();
+}
+
+</script>
+</body>
+</html>
