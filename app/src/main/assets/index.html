@@ -1095,7 +1095,7 @@ async function syncFromTG(){
       if(!msg.photo)continue;
       const uid='p'+msg.message_id;
       if(DB.photos.find(p=>p.uid===uid)||DB.trash.find(p=>p.uid===uid))continue;
-      const {album,caption,ok}=decCap(msg.caption||'');if(!ok&&msg.caption)continue;
+      const {album,caption}=decCap(msg.caption||''); // accept all photos
       const photos=msg.photo||[];
       const thumbFid=photos.length>1?photos[1].file_id:(photos[0]?.file_id||'');
       const fullFid=photos.length?photos[photos.length-1].file_id:'';
@@ -1121,7 +1121,12 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
   } else {
-    if(!DB.config.demo) startPolling();
+    if(!DB.config.demo){
+      // App foreground-এ এলে সাথে সাথে sync করো
+      // lastUpdateId reset করো না — শুধু নতুনগুলো আনো
+      syncFromTG();
+      startPolling();
+    }
   }
 });
 
