@@ -808,7 +808,7 @@ function renderTrash(){
   const now=Date.now();
   grid.innerHTML=sorted.map(p=>{
     const dl=Math.max(0,30-Math.floor((now-p.deletedAt)/86400000));
-    return `<div class="pic-cell trash-cell${tSelUIDs.has(p.uid)?' chk':''}" id="tcell-${p.uid}" ontouchstart="lpStart(event,'${p.uid}','trash')" ontouchend="lpEnd()" ontouchmove="lpCancel()" onclick="onTCell('${p.uid}')"><img data-src="${p.url}" alt="" onload="this.classList.add('vis')"><div class="pic-check"></div><div class="trash-days-lbl">${dl}일</div></div>`;
+    return `<div class="pic-cell trash-cell${tSelUIDs.has(p.uid)?' chk':''}" id="tcell-${p.uid}" ontouchstart="lpStart(event,'${p.uid}','trash')" ontouchend="lpEnd()" ontouchmove="lpCancel()" onclick="onTCell('${p.uid}')"><img data-src="${p.url}" alt="" onload="this.classList.add('vis')"><div class="pic-check"></div><div class="trash-days-lbl">${dl} দিন</div></div>`;
   }).join('');
   lazyLoad(grid);
   if(tSelMode)grid.classList.add('sel-mode');
@@ -817,7 +817,10 @@ function renderTrash(){
   document.getElementById('t-action-bar').className='t-action-bar'+(tSelMode?' active':'');
   document.getElementById('t-sel-count').textContent=`${tSelUIDs.size}টি বেছে নেওয়া`;
 }
-function onTCell(uid){if(!tSelMode)enableTSel();toggleTSel(uid);}
+function onTCell(uid){
+  if(tSelMode){toggleTSel(uid);}
+  // single tap on trash = just show (no action needed in trash)
+}
 function onTCellLong(uid){if(!tSelMode)enableTSel();toggleTSel(uid);}
 function enableTSel(){tSelMode=true;document.getElementById('trash-grid').classList.add('sel-mode');document.getElementById('t-sel-all-btn').style.display='flex';document.getElementById('t-cancel-btn').style.display='flex';document.getElementById('t-action-bar').classList.add('active');}
 function cancelTrashSel(){tSelMode=false;tSelUIDs.clear();document.getElementById('trash-grid').classList.remove('sel-mode');document.querySelectorAll('#trash-grid .chk').forEach(c=>c.classList.remove('chk'));document.getElementById('t-sel-all-btn').style.display='none';document.getElementById('t-cancel-btn').style.display='none';document.getElementById('t-action-bar').classList.remove('active');}
@@ -831,15 +834,28 @@ function restoreSelected(){
 }
 function permDelConfirm(){if(!tSelUIDs.size){toast('ছবি বেছে নিন');return;}showConfirm(`${tSelUIDs.size}টি স্থায়ীভাবে মুছবেন?`,'Telegram থেকেও চলে যাবে।',doPermanentDelete);}
 async function doPermanentDelete(){
-  const uids=[...tSelUIDs];cancelTrashSel();toast(`${uids.length}টি মুছছি…`);
-  for(const uid of uids){const p=DB.trash.find(x=>x.uid===uid);if(!p)continue;if(!DB.config.demo)await tgDel(p.msgId).catch(()=>{});DB.trash=DB.trash.filter(x=>x.uid!==uid);}
-  saveDB();renderTrash();updateTrashBadge();toast(`${uids.length}টি স্থায়ীভাবে মুছে গেছে`);
+  const uids=[...tSelUIDs];
+  cancelTrashSel();
+  toast(`মুছছি…`);
+  let done=0;
+  for(const uid of uids){
+    const p=DB.trash.find(x=>x.uid===uid);
+    if(!p)continue;
+    // msgId > 0 থাকলেই Telegram থেকে delete করো
+    if(!DB.config.demo && p.msgId && p.msgId>0){
+      await tgDel(p.msgId).catch(()=>{});
+    }
+    DB.trash=DB.trash.filter(x=>x.uid!==uid);
+    done++;
+  }
+  saveDB();renderTrash();updateTrashBadge();
+  toast(`${done}টি স্থায়ীভাবে মুছে গেছে`);
 }
 function emptyTrashConfirm(){
   if(!DB.trash.length){toast('Bin ইতিমধ্যে খালি');return;}
   showConfirm(`সব ${DB.trash.length}টি মুছবেন?`,'Telegram থেকেও স্থায়ীভাবে যাবে।',async()=>{
     toast('সব মুছছি…');
-    for(const p of DB.trash){if(!DB.config.demo)await tgDel(p.msgId).catch(()=>{});}
+    for(const p of DB.trash){if(!DB.config.demo && p.msgId && p.msgId>0)await tgDel(p.msgId).catch(()=>{});}
     DB.trash=[];saveDB();renderTrash();updateTrashBadge();toast('Recycle Bin খালি হয়েছে');
   });
 }

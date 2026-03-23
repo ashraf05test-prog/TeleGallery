@@ -113,7 +113,7 @@ public class AutoBackupService extends Service {
                 String bucket = c.getString(c.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME));
 
                 Uri imgUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
-                String caption = "#TGG|a:" + (bucket != null ? bucket : "All") + "|c:Auto Backup";
+                String caption = "#TGG|a:" + (bucket != null ? bucket.replace("|","_") : "All") + "|c:AutoBackup";
 
                 boolean ok = uploadToTelegram(imgUri, name, caption, token, chatId);
                 if (ok) {
@@ -158,7 +158,7 @@ public class AutoBackupService extends Service {
                 if (prefs.isAlreadyBackedUp(id)) { done++; continue; }
 
                 Uri imgUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
-                String caption = "#TGG|a:" + (bucket != null ? bucket : "All") + "|c:Auto Backup";
+                String caption = "#TGG|a:" + (bucket != null ? bucket.replace("|","_") : "All") + "|c:AutoBackup";
 
                 boolean ok = uploadToTelegram(imgUri, name, caption, token, chatId);
                 if (ok) {
