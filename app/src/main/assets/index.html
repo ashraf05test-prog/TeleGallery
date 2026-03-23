@@ -50,14 +50,24 @@ html,body{height:100%;background:#000;color:#fff;font-family:-apple-system,'Sams
 .bn-item.active .bn-label{font-weight:500}
 
 /* ── PICS TAB ── */
-#pics-scroll{flex:1;overflow-y:auto}
+#pics-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;will-change:scroll-position}
 #pics-scroll::-webkit-scrollbar{display:none}
 .date-header{padding:18px 12px 8px;font-size:18px;font-weight:600;letter-spacing:-.2px}
 .pic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
-.pic-cell{position:relative;aspect-ratio:1;background:#111;overflow:hidden;cursor:pointer}
-.pic-cell img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .2s}
+.pic-cell{position:relative;aspect-ratio:1;background:#1a1a1a;overflow:hidden;cursor:pointer;
+  will-change:transform;-webkit-backface-visibility:hidden}
+.pic-cell img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;
+  transition:opacity .15s ease;will-change:opacity;-webkit-backface-visibility:hidden}
 .pic-cell img.vis{opacity:1}
-.pic-cell:active img{opacity:.7}
+.pic-cell:active{opacity:.75}
+/* Shimmer placeholder while loading */
+.pic-cell::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;z-index:0}
+.pic-cell img.vis~*,.pic-cell img.vis{z-index:1}
+.pic-cell img.vis::before{display:none}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .pic-check{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;
   border:1.5px solid rgba(255,255,255,0.85);background:rgba(0,0,0,0.25);
   display:none;align-items:center;justify-content:center;z-index:2;
@@ -168,10 +178,9 @@ html,body{height:100%;background:#000;color:#fff;font-family:-apple-system,'Sams
 .viewer-topbar{height:52px;display:flex;align-items:center;padding:0 4px;background:#000;flex-shrink:0}
 .viewer-title{flex:1;padding:0 8px;font-size:14px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .viewer-body{flex:1;overflow:hidden;position:relative}
-.v-swiper{display:flex;width:100%;height:100%;transition:transform .25s ease}
-.v-slide{width:100%;height:100%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.v-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;touch-action:none;transform-origin:center center;transition:none}
-.v-slide{touch-action:pan-x}
+.v-swiper{display:flex;width:100%;height:100%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.v-slide{width:100%;height:100%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;will-change:transform}
+.v-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;touch-action:none;transform-origin:center center;transition:none;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .viewer-foot{height:64px;display:flex;align-items:center;justify-content:space-around;background:#000;border-top:1px solid #1a1a1a;flex-shrink:0}
 .vf-btn{width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:none;background:transparent;color:#fff;cursor:pointer;border-radius:12px}
 .vf-btn:active{background:#1a1a1a}
@@ -755,7 +764,19 @@ function dateLabel(ts){
   return d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 }
 function lazyLoad(root){
-  const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){const i=e.target;i.src=i.dataset.src;obs.unobserve(i);}});},{rootMargin:'200px'});
+  // 400px ahead — images start loading before user reaches them
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const i=e.target;
+        if(i.dataset.src){
+          i.src=i.dataset.src;
+          delete i.dataset.src;
+        }
+        obs.unobserve(i);
+      }
+    });
+  },{rootMargin:'400px 0px'});
   root.querySelectorAll('img[data-src]').forEach(i=>obs.observe(i));
 }
 
@@ -873,10 +894,23 @@ function openViewer(uid){
   vIdx=vPhotos.findIndex(p=>p.uid===uid);if(vIdx<0)vIdx=0;
   buildSlides();document.getElementById('s-viewer').classList.add('active');setVInfo();
 }
+// Virtual viewer: only 3 slides in DOM (prev, current, next)
 function buildSlides(){
-  const sw=document.getElementById('v-swiper');sw.style.transition='none';sw.style.transform=`translateX(-${vIdx*100}%)`;
-  sw.innerHTML=vPhotos.map(p=>`<div class="v-slide"><img src="${p.url}" alt=""></div>`).join('');
+  _renderVirtualSlides();
   setupViewerTouch();
+}
+
+function _renderVirtualSlides(){
+  const sw=document.getElementById('v-swiper');
+  const prev=vPhotos[vIdx-1],curr=vPhotos[vIdx],next=vPhotos[vIdx+1];
+  const slides=[prev,curr,next].map((p,i)=>{
+    if(!p) return `<div class="v-slide" style="visibility:hidden"></div>`;
+    return `<div class="v-slide"><img src="${p.url}" alt="" style="opacity:0;transition:opacity .2s" onload="this.style.opacity=1"></div>`;
+  });
+  sw.style.transition='none';
+  sw.innerHTML=slides.join('');
+  // Always show middle slide (index 1)
+  sw.style.transform='translate3d(-100%,0,0)';
 }
 function setupViewerTouch(){
   const body=document.getElementById('viewer-body');
@@ -904,15 +938,30 @@ function setupViewerTouch(){
       const d=dist(e.touches);
       scale=Math.min(5,Math.max(1,lastScale*(d/dist0)));
       const img=curImg();if(img)applyZoom(img,scale,originX,originY);
+      return;
+    }
+    if(e.touches.length===1&&!pinching&&scale<=1){
+      // Live drag feedback — no lag
+      const dx=e.touches[0].clientX-startX;
+      const sw=document.getElementById('v-swiper');
+      sw.style.transition='none';
+      sw.style.transform=`translate3d(calc(-100% + ${dx}px),0,0)`;
     }
   };
   body.ontouchend=e=>{
     if(pinching&&e.touches.length<2){pinching=false;lastScale=scale;return;}
     if(pinching)return;
-    if(scale>1)return; // don't swipe when zoomed in
+    if(scale>1)return;
     const dx=e.changedTouches[0].clientX-startX;
     const dy=Math.abs(e.changedTouches[0].clientY-startY);
-    if(Math.abs(dx)>50&&dy<60){if(dx<0)vNav(1);else vNav(-1);}
+    const sw=document.getElementById('v-swiper');
+    if(Math.abs(dx)>60&&dy<80){
+      vNav(dx<0?1:-1);
+    } else {
+      // snap back
+      sw.style.transition='transform .18s ease';
+      sw.style.transform='translate3d(-100%,0,0)';
+    }
   };
   // Double tap to reset zoom
   let lastTap=0;
@@ -928,14 +977,16 @@ function setupViewerTouch(){
 function setVInfo(){const p=vPhotos[vIdx];if(!p)return;document.getElementById('viewer-title').textContent=p.caption||(p.album||'ছবি');}
 function vNav(dir){
   const n=vIdx+dir;if(n<0||n>=vPhotos.length)return;
-  // Reset zoom on current slide before navigating
-  const slides=document.querySelectorAll('.v-slide img');
-  if(slides[vIdx]){slides[vIdx].style.transform='scale(1)';}
   vIdx=n;
   const sw=document.getElementById('v-swiper');
-  sw.style.transition='transform .22s ease';
-  sw.style.transform=`translateX(-${vIdx*100}%)`;
-  setVInfo();
+  sw.style.transition='transform .22s cubic-bezier(0.25,0.46,0.45,0.94)';
+  // Animate to next/prev then rebuild
+  const target=dir>0?'-200%':'0%';
+  sw.style.transform=`translate3d(${target},0,0)`;
+  setTimeout(()=>{
+    _renderVirtualSlides();
+    setVInfo();
+  },230);
 }
 function closeViewer(){document.getElementById('s-viewer').classList.remove('active');vPhotos=[];vIdx=0;}
 function toggleFav(){const p=vPhotos[vIdx];if(!p)return;const ph=DB.photos.find(x=>x.uid===p.uid);if(ph){ph.fav=!ph.fav;saveDB();toast(ph.fav?'Favourites-এ যোগ':'Favourites থেকে বাদ');}}
